@@ -52,7 +52,7 @@ export function createWorkers(
   });
   const dispatcher = new NotificationDispatcher(
     db,
-    new SecretBox(config.SECRETS_ENCRYPTION_KEY),
+    new SecretBox(config.SECRETS_ENCRYPTION_KEY, config.SECRETS_ENCRYPTION_KEY_PREVIOUS),
     sender,
     log.child({ component: 'notifications' }),
     {

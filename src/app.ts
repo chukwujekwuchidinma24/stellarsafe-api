@@ -66,7 +66,7 @@ export function createServices({ config, db, chain }: AppDeps): Services {
     notifications: new NotificationService(
       db,
       treasuries,
-      new SecretBox(config.SECRETS_ENCRYPTION_KEY),
+      new SecretBox(config.SECRETS_ENCRYPTION_KEY, config.SECRETS_ENCRYPTION_KEY_PREVIOUS),
       config,
     ),
   };

@@ -50,7 +50,6 @@ Each comes with clear acceptance criteria:
 | Area          | Task                                                                                            |
 | ------------- | ----------------------------------------------------------------------------------------------- |
 | Notifications | "Proposal expiring soon" reminders (scheduled job, de-duplicated per proposal)                  |
-| Notifications | Dual-key support for `SECRETS_ENCRYPTION_KEY` rotation                                          |
 | API           | `GET /treasuries/:id/spending` showing per-department, per-period totals from `executed` events |
 | Auth          | SEP-10 multisig thresholds (load account signers from Horizon)                                  |
 | Indexer       | Admin endpoint/CLI to reset a treasury's checkpoint for an archival backfill                    |

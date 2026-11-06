@@ -16,7 +16,7 @@ For small deployments, `RUN_WORKERS=true` runs the worker inside the API process
 
 - [ ] `NODE_ENV=production` (HTTPS-only webhooks, JSON logs)
 - [ ] `JWT_SECRET`: `openssl rand -base64 48`, stored in a secret manager
-- [ ] `SECRETS_ENCRYPTION_KEY`: `openssl rand -base64 32`. **Back it up.** Losing it makes webhook secrets unreadable, and subscribers will need new ones.
+- [ ] `SECRETS_ENCRYPTION_KEY`: `openssl rand -base64 32`. **Back it up.** Losing it makes webhook secrets unreadable, and subscribers will need new ones. To change it, see [Rotating `SECRETS_ENCRYPTION_KEY`](#runbooks) below.
 - [ ] `SEP10_SIGNING_SECRET` (optional): a dedicated, **unfunded** key
 - [ ] `PUBLIC_URL` and `AUTH_HOME_DOMAIN` set to the public API domain (these are embedded in sign-in messages)
 - [ ] `CORS_ORIGINS` set to the web app's origin(s)
@@ -65,8 +65,31 @@ transaction and sends no notifications.
 **Rotating `JWT_SECRET`.** Every access token becomes invalid immediately. Clients refresh
 (refresh tokens are stored hashed and still work) or sign in again.
 
-**Rotating `SECRETS_ENCRYPTION_KEY`.** No dual-key support yet. Subscribers must call
-`rotate-secret` after the change. Planned work: see CONTRIBUTING.
+**Rotating `SECRETS_ENCRYPTION_KEY`.** This key encrypts webhook signing secrets and queued
+email-verification tokens, and signs unsubscribe links. It can be rotated with no downtime and
+no action from subscribers:
+
+1. Generate a new key: `openssl rand -base64 32`. Back it up next to the old one.
+2. Set `SECRETS_ENCRYPTION_KEY_PREVIOUS` to the **current** key and `SECRETS_ENCRYPTION_KEY` to
+   the **new** key. Do this for the API and the worker.
+3. Roll out the API and the worker. From now on new values are encrypted with the new key, and
+   existing values decrypt with either key. Replicas still running the old config cannot read
+   values written with the new key, so finish the rollout before the next step.
+4. Re-encrypt everything stored with the old key, using the same environment:
+   `npm run rotate-secrets` (or `node dist/cli/rotate-secrets.js` in the image). It is safe to
+   run while the app is up and safe to re-run. It prints counts per table and exits non-zero if
+   any value can't be decrypted with either key; in that case keep `_PREVIOUS` set and
+   investigate the listed ids before going further.
+5. Once it reports `0 unreadable`, remove `SECRETS_ENCRYPTION_KEY_PREVIOUS` and roll out again.
+6. Destroy the old key, including from backups of your secrets store, once you no longer need
+   to restore database backups taken before step 4.
+
+Unsubscribe links in emails sent before the rotation keep working while
+`SECRETS_ENCRYPTION_KEY_PREVIOUS` is set and stop working after step 5. Recipients can still
+unsubscribe from any newer email. Keep `_PREVIOUS` set for a few days if that matters to you.
+
+If the old key is lost rather than rotated, stored secrets can't be recovered: subscribers must
+call `rotate-secret` to get new ones.
 
 ## Data retention
 

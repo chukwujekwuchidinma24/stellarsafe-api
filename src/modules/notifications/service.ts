@@ -4,7 +4,7 @@ import type { Config } from '../../config.js';
 import { sql, type Kysely } from 'kysely';
 import type { DB } from '../../db/index.js';
 import type { Database, Subscription } from '../../db/schema.js';
-import { randomToken, safeEqual, sha256Hex, type SecretBox } from '../../lib/crypto.js';
+import { randomToken, sha256Hex, type SecretBox } from '../../lib/crypto.js';
 import { AppError, badRequest, conflict, notFound } from '../../lib/errors.js';
 import { decodeCursor, paginate } from '../../lib/pagination.js';
 import type { TreasuryService } from '../treasuries/service.js';
@@ -194,7 +194,7 @@ export class NotificationService {
   async unsubscribe(token: string): Promise<boolean> {
     const [id, mac] = token.split('.');
     if (!id || !mac || !z.uuid().safeParse(id).success) return false;
-    if (!safeEqual(mac, this.box.mac('unsubscribe', id))) return false;
+    if (!this.box.verifyMac('unsubscribe', id, mac)) return false;
     const row = await this.db
       .updateTable('notification_subscriptions')
       .set({ enabled: false, disabled_reason: 'unsubscribed via email link', updated_at: new Date() })

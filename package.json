@@ -18,6 +18,8 @@
     "migrate": "tsx src/cli/migrate.ts",
     "migrate:prod": "node dist/cli/migrate.js",
     "reproject": "tsx src/cli/reproject.ts",
+    "rotate-secrets": "tsx src/cli/rotate-secrets.ts",
+    "rotate-secrets:prod": "node dist/cli/rotate-secrets.js",
     "openapi": "tsx src/cli/openapi.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

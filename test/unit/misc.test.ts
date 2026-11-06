@@ -40,6 +40,22 @@ describe('config', () => {
     ).toThrow(/NOTIFY_ALLOW_PRIVATE_TARGETS/);
   });
 
+  it('validates SECRETS_ENCRYPTION_KEY_PREVIOUS', () => {
+    const prev = Buffer.alloc(32, 9).toString('base64');
+    expect(
+      loadConfig({ ...baseEnv, SECRETS_ENCRYPTION_KEY_PREVIOUS: prev }).SECRETS_ENCRYPTION_KEY_PREVIOUS,
+    ).toBe(prev);
+    expect(
+      loadConfig({ ...baseEnv, SECRETS_ENCRYPTION_KEY_PREVIOUS: '' }).SECRETS_ENCRYPTION_KEY_PREVIOUS,
+    ).toBeUndefined();
+    expect(() => loadConfig({ ...baseEnv, SECRETS_ENCRYPTION_KEY_PREVIOUS: 'abc' })).toThrow(
+      /SECRETS_ENCRYPTION_KEY_PREVIOUS/,
+    );
+    expect(() =>
+      loadConfig({ ...baseEnv, SECRETS_ENCRYPTION_KEY_PREVIOUS: baseEnv.SECRETS_ENCRYPTION_KEY }),
+    ).toThrow(/must differ/);
+  });
+
   it('parses CSV lists', () => {
     expect(loadConfig({ ...baseEnv, CORS_ORIGINS: 'https://a.com, https://b.com,' }).CORS_ORIGINS).toEqual([
       'https://a.com',
@@ -69,6 +85,52 @@ describe('SecretBox', () => {
 
   it('requires a 32-byte key', () => {
     expect(() => new SecretBox('AAAA')).toThrow();
+    expect(() => new SecretBox(Buffer.alloc(32, 1).toString('base64'), 'AAAA')).toThrow();
+  });
+});
+
+describe('SecretBox key rotation', () => {
+  const oldKey = Buffer.alloc(32, 1).toString('base64');
+  const newKey = Buffer.alloc(32, 2).toString('base64');
+  const wrongKey = Buffer.alloc(32, 3).toString('base64');
+  const oldBox = new SecretBox(oldKey);
+  const rotating = new SecretBox(newKey, oldKey);
+
+  it('seals with the current key', () => {
+    const sealed = rotating.seal('whsec_new');
+    expect(new SecretBox(newKey).open(sealed)).toBe('whsec_new');
+    expect(() => oldBox.open(sealed)).toThrow();
+  });
+
+  it('opens values sealed with either the current or the previous key', () => {
+    expect(rotating.open(oldBox.seal('whsec_old'))).toBe('whsec_old');
+    expect(rotating.open(rotating.seal('whsec_new'))).toBe('whsec_new');
+  });
+
+  it('rejects values sealed with an unknown key', () => {
+    const sealed = new SecretBox(wrongKey).seal('whsec_x');
+    expect(() => rotating.open(sealed)).toThrow();
+    expect(() => rotating.reseal(sealed)).toThrow();
+    expect(() => new SecretBox(newKey).open(oldBox.seal('whsec_old'))).toThrow();
+  });
+
+  it('reseals previous-key values and leaves current ones alone', () => {
+    const resealed = rotating.reseal(oldBox.seal('whsec_old'));
+    expect(resealed).not.toBeNull();
+    expect(new SecretBox(newKey).open(resealed!)).toBe('whsec_old');
+    expect(rotating.reseal(rotating.seal('whsec_new'))).toBeNull();
+  });
+
+  it('verifies MACs from either key but signs with the current one', () => {
+    const oldMac = oldBox.mac('unsubscribe', 'id-1');
+    expect(rotating.verifyMac('unsubscribe', 'id-1', oldMac)).toBe(true);
+    expect(rotating.verifyMac('unsubscribe', 'id-1', rotating.mac('unsubscribe', 'id-1'))).toBe(true);
+    expect(rotating.mac('unsubscribe', 'id-1')).not.toBe(oldMac);
+    expect(rotating.verifyMac('unsubscribe', 'id-2', oldMac)).toBe(false);
+    expect(new SecretBox(newKey).verifyMac('unsubscribe', 'id-1', oldMac)).toBe(false);
+    expect(
+      rotating.verifyMac('unsubscribe', 'id-1', new SecretBox(wrongKey).mac('unsubscribe', 'id-1')),
+    ).toBe(false);
   });
 });
 

@@ -62,6 +62,11 @@ const envSchema = z
     SECRETS_ENCRYPTION_KEY: z
       .string()
       .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be 32 bytes, base64 encoded'),
+    /** Previous key, still accepted for decryption while rotating. Remove after `npm run rotate-secrets`. */
+    SECRETS_ENCRYPTION_KEY_PREVIOUS: z
+      .string()
+      .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be 32 bytes, base64 encoded')
+      .optional(),
 
     /** SMTP connection URL (smtp:// or smtps://). Enables the email notification channel. */
     SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
@@ -96,6 +101,18 @@ const envSchema = z
         path: ['ALLOW_MAINNET'],
         message:
           'StellarSafe contracts are unaudited. Set ALLOW_MAINNET=true to run against mainnet deliberately.',
+      });
+    }
+    if (
+      env.SECRETS_ENCRYPTION_KEY_PREVIOUS !== undefined &&
+      Buffer.from(env.SECRETS_ENCRYPTION_KEY_PREVIOUS, 'base64').equals(
+        Buffer.from(env.SECRETS_ENCRYPTION_KEY, 'base64'),
+      )
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SECRETS_ENCRYPTION_KEY_PREVIOUS'],
+        message: 'must differ from SECRETS_ENCRYPTION_KEY',
       });
     }
     if (env.NODE_ENV === 'production' && env.NOTIFY_ALLOW_PRIVATE_TARGETS) {
