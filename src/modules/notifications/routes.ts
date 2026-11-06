@@ -5,6 +5,7 @@ import { requireAccount } from '../../plugins/auth.js';
 import { cursorSchema, limitSchema } from '../../lib/pagination.js';
 import { errorResponses, pageSchema } from '../../lib/schemas.js';
 import { contractIdSchema } from '../../lib/stellar.js';
+import { PROPOSAL_EXPIRING_EVENT } from './reminders.js';
 import type { NotificationService } from './service.js';
 
 const subscriptionSchema = z
@@ -49,7 +50,9 @@ const deliverySchema = z
   })
   .meta({ id: 'NotificationDelivery' });
 
-const eventTypes = z.array(z.enum(DOMAIN_EVENT_TYPE_VALUES)).max(DOMAIN_EVENT_TYPE_VALUES.length);
+/** Chain events plus events the worker generates itself. */
+const NOTIFICATION_EVENT_TYPES = [...DOMAIN_EVENT_TYPE_VALUES, PROPOSAL_EXPIRING_EVENT] as const;
+const eventTypes = z.array(z.enum(NOTIFICATION_EVENT_TYPES)).max(NOTIFICATION_EVENT_TYPES.length);
 const format = z.enum(['json', 'slack', 'discord']);
 const subParams = z.object({ id: z.uuid() });
 const security = [{ bearerAuth: [] }];

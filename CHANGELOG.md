@@ -23,3 +23,5 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Abuse limits: per-account registration cap, per-IP write limit, cached balance reads and probe.
 - Indexes for the treasury list and pending-proposal counts (47× faster under load), plus a
   load-test harness (`bench/`).
+- `proposal.expiring` reminders: the worker notifies members once per pending proposal before it
+  expires (`PROPOSAL_EXPIRY_REMINDER_HOURS`, default 24).

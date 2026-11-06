@@ -6,6 +6,7 @@ import { SecretBox } from './lib/crypto.js';
 import type { Logger } from './lib/logger.js';
 import { NotificationDispatcher } from './modules/notifications/dispatcher.js';
 import { createSmtpMailer, type Mailer } from './modules/notifications/mailer.js';
+import { pruneExpiryReminders, queueExpiryReminders } from './modules/notifications/reminders.js';
 import { sendWebhook, type WebhookSender } from './modules/notifications/sender.js';
 
 export function createChainClient(config: Config): ChainClient {
@@ -27,6 +28,7 @@ export async function runMaintenance(db: DB, now = new Date()): Promise<void> {
     .where('outbox_id', 'is', null)
     .where('created_at', '<', daysAgo(30))
     .execute();
+  await pruneExpiryReminders(db, now);
 }
 
 export interface Workers {
@@ -66,6 +68,8 @@ export function createWorkers(
     },
   );
   let maintenance: NodeJS.Timeout | undefined;
+  let reminders: NodeJS.Timeout | undefined;
+  const remindLog = log.child({ component: 'reminders' });
 
   return {
     indexer,
@@ -77,9 +81,25 @@ export function createWorkers(
       maintenance = setInterval(() => void tick(), 3600_000);
       maintenance.unref();
       void tick();
+
+      if (!reminders && config.PROPOSAL_EXPIRY_REMINDER_HOURS > 0) {
+        const remind = async () => {
+          try {
+            const count = await queueExpiryReminders(db, config.PROPOSAL_EXPIRY_REMINDER_HOURS);
+            if (count > 0) remindLog.info({ count }, 'queued proposal expiry reminders');
+          } catch (err) {
+            remindLog.error({ err }, 'expiry reminders failed');
+          }
+        };
+        reminders = setInterval(() => void remind(), config.PROPOSAL_EXPIRY_REMINDER_INTERVAL_MS);
+        reminders.unref();
+        void remind();
+      }
     },
     async stop() {
       if (maintenance) clearInterval(maintenance);
+      if (reminders) clearInterval(reminders);
+      reminders = undefined;
       await Promise.all([indexer.stop(), dispatcher.stop()]);
     },
   };
