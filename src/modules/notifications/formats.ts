@@ -27,6 +27,8 @@ export function summarize(p: OutboxPayload): string {
       return `Proposal #${String(d.id)} in treasury ${t} executed by ${short(d.executor)}`;
     case 'proposal.cancelled':
       return `Proposal #${String(d.id)} in treasury ${t} cancelled by ${short(d.by)}`;
+    case 'proposal.expiring':
+      return `Proposal #${String(d.id)} in treasury ${t} expires at ${String(d.expires_at)} (${String(d.approvals)}/${String(d.required_approvals)} approvals): ${String(d.amount)} of ${short(d.token)} to ${short(d.recipient)}`;
     case 'member.added':
       return `${short(d.member)} was added to treasury ${t}`;
     case 'member.removed':

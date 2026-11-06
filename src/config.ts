@@ -93,6 +93,14 @@ const envSchema = z
     NOTIFY_DISABLE_AFTER_FAILURES: z.coerce.number().int().min(1).default(20),
     /** Allow webhooks to private/loopback addresses. Never enable in production. */
     NOTIFY_ALLOW_PRIVATE_TARGETS: bool.default(false),
+    /** Send a "proposal.expiring" reminder this many hours before a pending proposal expires. 0 = off. */
+    PROPOSAL_EXPIRY_REMINDER_HOURS: z.coerce
+      .number()
+      .min(0)
+      .max(30 * 24)
+      .default(24),
+    /** How often the worker looks for proposals entering the reminder window. */
+    PROPOSAL_EXPIRY_REMINDER_INTERVAL_MS: z.coerce.number().int().min(10_000).default(300_000),
   })
   .superRefine((env, ctx) => {
     if (env.STELLAR_NETWORK === 'mainnet' && !env.ALLOW_MAINNET) {
