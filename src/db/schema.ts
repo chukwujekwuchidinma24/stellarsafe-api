@@ -169,6 +169,13 @@ export interface NotificationOutboxTable {
   fanned_out_at: Timestamp | null;
 }
 
+export interface ProposalExpiryRemindersTable {
+  contract_id: string;
+  proposal_id: Numeric;
+  expires_at: Timestamp;
+  created_at: TimestampDefault;
+}
+
 export type DeliveryStatus = 'pending' | 'in_flight' | 'succeeded' | 'dead';
 
 export interface NotificationDeliveriesTable {
@@ -201,6 +208,7 @@ export interface Database {
   notification_subscriptions: NotificationSubscriptionsTable;
   notification_outbox: NotificationOutboxTable;
   notification_deliveries: NotificationDeliveriesTable;
+  proposal_expiry_reminders: ProposalExpiryRemindersTable;
 }
 
 export type Treasury = Selectable<TreasuriesTable>;

@@ -41,7 +41,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
 
 export async function truncateAll(db: DB): Promise<void> {
   await sql`
-    TRUNCATE notification_deliveries, notification_outbox, notification_subscriptions, activity, chain_events,
+    TRUNCATE notification_deliveries, notification_outbox, proposal_expiry_reminders, notification_subscriptions, activity, chain_events,
       proposal_metadata, proposal_approvals, proposals, treasury_recipients, treasury_members, treasuries,
       refresh_tokens, auth_challenges RESTART IDENTITY CASCADE
   `.execute(db);

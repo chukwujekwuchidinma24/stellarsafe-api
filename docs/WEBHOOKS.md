@@ -18,7 +18,40 @@ The response contains `secret` (`whsec_…`). **It is only shown here and on rot
 
 Event types: `treasury.initialized`, `member.added`, `member.removed`, `policy.updated`,
 `recipient.added`, `recipient.removed`, `proposal.created`, `proposal.approved`,
-`proposal.approval_revoked`, `proposal.executed`, `proposal.cancelled`. The test endpoint sends `ping`.
+`proposal.approval_revoked`, `proposal.executed`, `proposal.cancelled`, `proposal.expiring`. The test
+endpoint sends `ping`.
+
+### `proposal.expiring`
+
+Unlike the others, this event comes from the worker, not the chain. Every
+`PROPOSAL_EXPIRY_REMINDER_INTERVAL_MS` (default 5 min) the worker looks for pending proposals that
+expire within `PROPOSAL_EXPIRY_REMINDER_HOURS` (default 24, `0` turns reminders off). It sends **one
+reminder per proposal**, even across restarts, several workers and reprojection. Executed,
+cancelled and already-expired proposals are skipped. A proposal created with less time left than
+the window gets its reminder on the next run.
+
+There is no `eventId`, `ledger` or `txHash`, and `occurredAt` is when the reminder was queued:
+
+```json
+{
+  "type": "proposal.expiring",
+  "treasuryId": "C…",
+  "occurredAt": "2026-11-06T12:00:00.000Z",
+  "data": {
+    "id": "7",
+    "proposer": "G…",
+    "recipient": "G…",
+    "token": "C…",
+    "amount": "5000000000",
+    "approvals": 1,
+    "required_approvals": 2,
+    "expires_at": "2026-11-07T09:30:00Z"
+  }
+}
+```
+
+Slack, Discord and email show it as `Proposal #7 in treasury CABC…WXYZ expires at
+2026-11-07T09:30:00Z (1/2 approvals): 5000000000 of CTOK…EN12 to GREC…IPNT`.
 
 ## Request
 
